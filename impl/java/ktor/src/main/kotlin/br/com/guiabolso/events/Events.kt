@@ -3,19 +3,17 @@ package br.com.guiabolso.events
 import br.com.guiabolso.events.model.RequestEvent
 import br.com.guiabolso.events.model.ResponseEvent
 import br.com.guiabolso.events.server.SuspendingEventProcessor
+import br.com.guiabolso.events.server.documentation.EventHandlerDocumentationService
+import br.com.guiabolso.events.server.documentation.SimpleEventHandlerMetadataRegistry
 import br.com.guiabolso.events.server.exception.handler.EventExceptionHandler
 import br.com.guiabolso.events.server.exception.handler.ExceptionHandlerRegistryFactory.exceptionHandler
 import br.com.guiabolso.events.server.handler.EventHandler
 import br.com.guiabolso.events.server.handler.SimpleEventHandlerRegistry
+import br.com.guiabolso.events.server.handler.TypedEventHandler
 import br.com.guiabolso.events.tracer.DefaultTracer
 import br.com.guiabolso.tracing.Tracer
 import io.ktor.http.ContentType
-import io.ktor.server.application.Application
-import io.ktor.server.application.ApplicationCallPipeline
-import io.ktor.server.application.BaseApplicationPlugin
-import io.ktor.server.application.call
-import io.ktor.server.application.install
-import io.ktor.server.application.pluginOrNull
+import io.ktor.server.application.*
 import io.ktor.server.request.contentCharset
 import io.ktor.server.request.path
 import io.ktor.server.request.receiveChannel
@@ -33,6 +31,10 @@ class Events(configuration: TraceConfiguration) {
         )
     }
 
+    private val documentationService = with(configuration) {
+        EventHandlerDocumentationService(metadataRegistry)
+    }
+
     class TraceConfiguration internal constructor(config: TraceConfiguration.() -> Unit) : Configuration() {
         internal lateinit var tracer: Tracer
 
@@ -48,10 +50,15 @@ class Events(configuration: TraceConfiguration) {
 
     open class Configuration {
         internal val registry = SimpleEventHandlerRegistry()
+        internal val metadataRegistry = SimpleEventHandlerMetadataRegistry()
         internal val exceptionHandler = exceptionHandler()
 
         @KtorDsl
         fun event(handler: EventHandler) {
+            when (handler) {
+                is TypedEventHandler<*, *> -> metadataRegistry.add(handler)
+            }
+
             registry.add(handler)
         }
 
@@ -87,17 +94,38 @@ class Events(configuration: TraceConfiguration) {
             val events = Events(TraceConfiguration(configure))
 
             pipeline.intercept(ApplicationCallPipeline.Call) {
-                val path = call.request.path()
-                if (path == "/events/" || path == "/events") {
-                    val rawEvent =
-                        call.receiveChannel().toByteArray().toString(call.request.contentCharset() ?: Charsets.UTF_8)
-                    call.respondText(
-                        text = events.processEvent(rawEvent), contentType = ContentType.Application.Json
-                    )
-                    return@intercept finish()
+                when (call.request.path()) {
+                    "/events/", "/events" -> {
+                        events.handle(call)
+                        return@intercept finish()
+                    }
+
+                    "/docs/", "/docs" -> {
+                        events.documentation(call)
+                        return@intercept finish()
+                    }
                 }
             }
             return events
+        }
+
+        private suspend fun Events.handle(call: ApplicationCall) {
+            val rawEvent =
+                call.receiveChannel().toByteArray().toString(call.request.contentCharset() ?: Charsets.UTF_8)
+
+            call.respondText(
+                text = processEvent(rawEvent),
+                contentType = ContentType.Application.Json
+            )
+        }
+
+        private suspend fun Events.documentation(call: ApplicationCall) {
+            documentationService.generate().let {
+                call.respondText(
+                    text = it,
+                    contentType = ContentType.Text.Plain
+                )
+            }
         }
     }
 }
