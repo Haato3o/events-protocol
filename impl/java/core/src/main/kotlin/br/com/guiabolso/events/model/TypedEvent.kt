@@ -2,7 +2,6 @@ package br.com.guiabolso.events.model
 
 import br.com.guiabolso.events.json.MapperHolder.mapper
 import br.com.guiabolso.events.json.TreeNode
-import kotlinx.coroutines.flow.flow
 
 sealed class TypedEvent<T> {
     abstract val name: String

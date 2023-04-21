@@ -12,6 +12,8 @@ class SimpleEventHandlerMetadataRegistry : EventHandlerMetadataRegistry {
             .let { registry.add(it) }
     }
 
+    override fun getAll(): List<EventHandlerMetadata<*, *>> = registry
+
     private fun <TIn, TOut> TypedEventHandler<TIn, TOut>.buildMetadata(): EventHandlerMetadata<TIn, TOut> {
         return EventHandlerMetadata(
             name = eventName,

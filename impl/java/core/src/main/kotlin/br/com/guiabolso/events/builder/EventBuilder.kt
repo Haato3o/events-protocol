@@ -5,13 +5,9 @@ import br.com.guiabolso.events.json.JsonNull
 import br.com.guiabolso.events.json.MapperHolder
 import br.com.guiabolso.events.json.TreeNode
 import br.com.guiabolso.events.json.treeNodeOrNull
-import br.com.guiabolso.events.model.EventErrorType
+import br.com.guiabolso.events.model.*
 import br.com.guiabolso.events.model.EventErrorType.BadProtocol
 import br.com.guiabolso.events.model.EventErrorType.EventNotFound
-import br.com.guiabolso.events.model.EventMessage
-import br.com.guiabolso.events.model.RedirectPayload
-import br.com.guiabolso.events.model.RequestEvent
-import br.com.guiabolso.events.model.ResponseEvent
 import br.com.guiabolso.events.utils.EventUtils
 import java.util.UUID
 

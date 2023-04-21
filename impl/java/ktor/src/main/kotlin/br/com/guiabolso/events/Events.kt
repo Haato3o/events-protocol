@@ -20,6 +20,7 @@ import io.ktor.server.request.receiveChannel
 import io.ktor.server.response.respondText
 import io.ktor.util.AttributeKey
 import io.ktor.util.KtorDsl
+import io.ktor.util.pipeline.*
 import io.ktor.util.toByteArray
 import kotlin.reflect.KClass
 
@@ -94,22 +95,16 @@ class Events(configuration: TraceConfiguration) {
             val events = Events(TraceConfiguration(configure))
 
             pipeline.intercept(ApplicationCallPipeline.Call) {
-                when (call.request.path()) {
-                    "/events/", "/events" -> {
-                        events.handle(call)
-                        return@intercept finish()
-                    }
-
-                    "/docs/", "/docs" -> {
-                        events.documentation(call)
-                        return@intercept finish()
-                    }
+                return@intercept when (call.request.path()) {
+                    "/events/", "/events" -> events.handle(this)
+                    "/docs/", "/docs" -> events.documentation(this)
+                    else -> {}
                 }
             }
             return events
         }
 
-        private suspend fun Events.handle(call: ApplicationCall) {
+        private suspend fun Events.handle(context: PipelineContext<Unit, ApplicationCall>) = with(context) {
             val rawEvent =
                 call.receiveChannel().toByteArray().toString(call.request.contentCharset() ?: Charsets.UTF_8)
 
@@ -117,15 +112,19 @@ class Events(configuration: TraceConfiguration) {
                 text = processEvent(rawEvent),
                 contentType = ContentType.Application.Json
             )
+
+            finish()
         }
 
-        private suspend fun Events.documentation(call: ApplicationCall) {
+        private suspend fun Events.documentation(context: PipelineContext<Unit, ApplicationCall>) = with(context) {
             documentationService.generate().let {
                 call.respondText(
                     text = it,
                     contentType = ContentType.Text.Plain
                 )
             }
+
+            finish()
         }
     }
 }
