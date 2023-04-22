@@ -3,6 +3,7 @@ package br.com.guiabolso.events
 import br.com.guiabolso.events.model.RequestEvent
 import br.com.guiabolso.events.model.ResponseEvent
 import br.com.guiabolso.events.server.SuspendingEventProcessor
+import br.com.guiabolso.events.server.documentation.EventHandlerDocumentationEmitter
 import br.com.guiabolso.events.server.documentation.EventHandlerDocumentationService
 import br.com.guiabolso.events.server.documentation.SimpleEventHandlerMetadataRegistry
 import br.com.guiabolso.events.server.exception.handler.EventExceptionHandler
@@ -33,7 +34,10 @@ class Events(configuration: TraceConfiguration) {
     }
 
     private val documentationService = with(configuration) {
-        EventHandlerDocumentationService(metadataRegistry)
+        EventHandlerDocumentationService(
+            metadataRegistry,
+            documentationEmitter
+        )
     }
 
     class TraceConfiguration internal constructor(config: TraceConfiguration.() -> Unit) : Configuration() {
@@ -52,6 +56,7 @@ class Events(configuration: TraceConfiguration) {
     open class Configuration {
         internal val registry = SimpleEventHandlerRegistry()
         internal val metadataRegistry = SimpleEventHandlerMetadataRegistry()
+        internal val documentationEmitter = EventHandlerDocumentationEmitter()
         internal val exceptionHandler = exceptionHandler()
 
         @KtorDsl

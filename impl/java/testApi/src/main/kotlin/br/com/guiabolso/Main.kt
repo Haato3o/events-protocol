@@ -4,6 +4,7 @@ import br.com.guiabolso.events.json.TreeNode
 import br.com.guiabolso.events.model.TypedRequestEvent
 import br.com.guiabolso.events.model.TypedResponseEvent
 import br.com.guiabolso.events.server.SuspendingEventProcessor
+import br.com.guiabolso.events.server.documentation.EventHandlerDocumentationEmitter
 import br.com.guiabolso.events.server.documentation.EventHandlerDocumentationService
 import br.com.guiabolso.events.server.documentation.SimpleEventHandlerMetadataRegistry
 import br.com.guiabolso.events.server.exception.handler.ExceptionHandlerRegistryFactory.exceptionHandler
@@ -28,10 +29,14 @@ data class ResponsePayload(
     val nameLength: Int
 )
 
-class TestEventHandler : TypedEventHandler<RequestPayload, ResponsePayload>() {
-    override val typeIn: Class<RequestPayload> = RequestPayload::class.java
-    override val typeOut: Class<ResponsePayload> = ResponsePayload::class.java
+data class ComplexPayload(
+    val strField: String,
+    val intField: Int,
+    val longField: Long,
+    val listField: List<String>
+)
 
+class TestEventHandler : TypedEventHandler<RequestPayload, ResponsePayload>() {
     override val eventName: String = "test:event"
 
     override val eventVersion: Int = 1
@@ -50,6 +55,23 @@ class TestEventHandler : TypedEventHandler<RequestPayload, ResponsePayload>() {
     }
 }
 
+class AnotherTestEventHandler : TypedEventHandler<ComplexPayload, Unit>() {
+    override val eventName: String = "another:test:event"
+    override val eventVersion: Int = 1
+
+    override suspend fun handle(event: TypedRequestEvent<ComplexPayload>): TypedResponseEvent<Unit> =
+        TypedResponseEvent(
+            name = "$eventName:response",
+            version = eventVersion,
+            id = event.id,
+            flowId = event.flowId,
+            payload = Unit,
+            identity = TreeNode(),
+            auth = TreeNode(),
+            metadata = TreeNode()
+        )
+}
+
 fun buildDiscovery(handlers: List<EventHandler>) = SimpleEventHandlerRegistry().apply {
     handlers.forEach(::add)
 }
@@ -58,12 +80,18 @@ fun buildMetadataRegistry(handlers: List<EventHandler>) = SimpleEventHandlerMeta
     handlers.filterIsInstance<TypedEventHandler<*, *>>().forEach { add(it) }
 }
 
+fun main2() {
+    val clazz = RequestPayload::class.java
+
+}
+
 fun main(): Unit = runBlocking {
     val applicationEnvironment = commandLineEnvironment(arrayOf("-port=8080"))
     val engine = NettyApplicationEngine(applicationEnvironment) { }
 
     val eventHandlers = listOf(
-        TestEventHandler()
+        TestEventHandler(),
+        AnotherTestEventHandler()
     )
 
     val handlerRegistry = buildDiscovery(eventHandlers)
@@ -72,7 +100,10 @@ fun main(): Unit = runBlocking {
         handlerRegistry,
         exceptionHandler()
     )
-    val documentationService = EventHandlerDocumentationService(metadataRegistry)
+    val documentationService = EventHandlerDocumentationService(
+        metadataRegistry,
+        EventHandlerDocumentationEmitter()
+    )
 
     engine.application.routing {
         post("/events") {

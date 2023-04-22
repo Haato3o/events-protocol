@@ -1,16 +1,12 @@
 package br.com.guiabolso.events.server.handler
 
-import br.com.guiabolso.events.model.RequestEvent
-import br.com.guiabolso.events.model.ResponseEvent
-import br.com.guiabolso.events.model.TypedRequestEvent
-import br.com.guiabolso.events.model.TypedResponseEvent
-import br.com.guiabolso.events.model.toTypedEvent
-
+import br.com.guiabolso.events.model.*
+import br.com.guiabolso.events.server.documentation.reflect.underlyingType
 
 abstract class TypedEventHandler<TIn, TOut> : EventHandler {
 
-    abstract val typeIn: Class<TIn>
-    abstract val typeOut: Class<TOut>
+    val typeIn: Class<TIn> = underlyingType(0)
+    val typeOut: Class<TOut> = underlyingType(1)
 
     final override suspend fun handle(event: RequestEvent): ResponseEvent {
         return with(event.toTypedEvent(typeIn)) {
